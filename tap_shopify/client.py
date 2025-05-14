@@ -25,8 +25,8 @@ class tap_shopifyStream(RESTStream):
 
         return f"{url_base}/api/{API_VERSION}"
 
-    records_jsonpath = "$[*]"  # Or override `parse_response`.
-    next_page_token_jsonpath = "$.next_page"  # Or override `get_next_page_token`.
+    records_jsonpath = "$[*]"
+    next_page_token_jsonpath = "$.next_page"
     last_id = None
 
     @property
@@ -67,13 +67,12 @@ class tap_shopifyStream(RESTStream):
 
         context_state = self.get_context_state(context)
         last_updated = context_state.get("replication_key_value")
-
         start_date = self.config.get("start_date")
 
         if last_updated:
             params["updated_at_min"] = last_updated
         elif start_date:
-            params["created_at_min"] = start_date
+            params["updated_at_min"] = start_date
 
         return params
 
