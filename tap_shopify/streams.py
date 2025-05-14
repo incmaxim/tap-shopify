@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import parse_qsl, urlsplit
 
 from tap_shopify.client import tap_shopifyStream
 
@@ -134,7 +135,27 @@ class OrdersStream(tap_shopifyStream):
     records_jsonpath = "$.orders[*]"
     primary_keys = ["id"]
     replication_key = "updated_at"
+    is_sorted = True
     schema_filepath = SCHEMAS_DIR / "order.json"
+
+    def get_url_params(self, context, next_page_token):
+        """Return a dictionary of values to be used in URL parameterization."""
+        if next_page_token:
+            return dict(parse_qsl(urlsplit(next_page_token).query))
+
+        params = {
+            "limit": 250,
+            "order": "updated_at asc",
+            "status": "any"
+        }
+
+        last = self.get_context_state(context).get("replication_key_value")
+        if last:
+            params["updated_at_min"] = last
+        else:
+            params["updated_at_min"] = self.config.get("start_date")
+
+        return params
 
     def post_process(self, row, context=None):
         """Perform syntactic transformations only."""
@@ -148,15 +169,6 @@ class OrdersStream(tap_shopifyStream):
     def get_child_context(self, record, context):
         """Return a context dictionary for child streams."""
         return {"order_id": record["id"]}
-
-    def get_url_params(self, context, next_page_token):
-        """Return a dictionary of values to be used in URL parameterization."""
-        params = super().get_url_params(context, next_page_token)
-
-        if not next_page_token:
-            params["status"] = "any"
-
-        return params
 
 
 class ProductsStream(tap_shopifyStream):
